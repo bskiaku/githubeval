@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout SCM') {
+            steps {
+                cleanWs()
+                git branch: 'main',
+                    url: 'https://github.com/bskiaku/githubeval.git'
+            }
+        }
+
+        stage('Install Docker') {
+            steps {
+                sh 'docker --version'
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                sh 'docker build -t my-nginx /var/lib/jenkins/workspace/pipeline-jenkinsfile4-deploy-application/'
+            }
+        }
+
+        stage('Clean Old Containers') {
+            steps {
+                sh '''
+                docker stop myapp || true
+                docker rm myapp || true
+                docker rmi my-nginx || true
+                '''
+            }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                sh '''
+                docker build -t my-nginx /var/lib/jenkins/workspace/pipeline-jenkinsfile4-deploy-application/
+                docker run -d --name myapp -p 80:80 my-nginx
+                docker cp /var/lib/jenkins/workspace/pipeline-jenkinsfile4-deploy-application/. myapp:/var/www/html/
+                docker inspect myapp | grep IPAddress
+                '''
+            }
+        }
+    }
+}
